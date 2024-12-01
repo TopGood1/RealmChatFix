@@ -1,0 +1,31 @@
+buildscript {
+    ext.kotlin_version = '1.9.0'  // Definisikan versi Kotlin di sini
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.3.1'  // Versi Gradle plugin
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"  // Versi Kotlin digunakan di sini
+        classpath 'com.google.gms:google-services:4.3.10'  // Plugin Google Services untuk Firebase
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

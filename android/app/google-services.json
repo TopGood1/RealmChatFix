@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "317949111812",
+    "project_id": "realmchat-e9182",
+    "storage_bucket": "realmchat-e9182.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:317949111812:android:464adcc9f76f5a446d8f51",
+        "android_client_info": {
+          "package_name": "com.mycompany.realmchat"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "317949111812-irm7tp0vao1ft5e016t5gpcgt6p4a0fs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mycompany.realmchat",
+            "certificate_hash": "0f5441658b41a1c75506ac70c1a2c37ef3853070"
+          }
+        },
+        {
+          "client_id": "317949111812-1ugbou2k23ntk43n67nnn8cuv4kj6ve7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBuZ_89yZhS2hV19uE56kA5xwrxQkNqzQY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "317949111812-1ugbou2k23ntk43n67nnn8cuv4kj6ve7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "317949111812-taa2rp7qt1j0822mp6u6k7oo8edbklg9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.realmchat"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
