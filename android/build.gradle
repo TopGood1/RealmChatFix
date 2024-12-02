@@ -7,7 +7,7 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:7.3.1'  // Versi Gradle plugin
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"  // Versi Kotlin digunakan di sini
-        classpath 'com.google.gms:google-services:4.3.10'  // Plugin Google Services untuk Firebase
+        classpath 'com.google.gms:google-services:4.3.15'  // Plugin Google Services untuk Firebase
     }
 }
 
