@@ -149,8 +149,7 @@ class ChatEmptyState extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           Icon(
-            const IconData(0xf03b7,
-                fontFamily: 'MaterialIcons'), // wechat_rounded
+            const IconData(0xf03b7, fontFamily: 'MaterialIcons'), // wechat_rounded
             color: customSwatch,
             size: 80,
           ),
@@ -166,7 +165,13 @@ class ChatEmptyState extends StatelessWidget {
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
-              _showFriendsPopup(context);
+              // Navigasi ke ChatScreen langsung
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ChatScreen(friendName: "Friend Name"),
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
@@ -183,54 +188,6 @@ class ChatEmptyState extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  void _showFriendsPopup(BuildContext context) {
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Select Friend'),
-            content: SizedBox(
-              height: 200,
-              width: double.maxFinite,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        _buildUserTile(context, 'User 1'),
-                        const Divider(),
-                        _buildUserTile(context, 'User 2'),
-                        const Divider(),
-                        _buildUserTile(context, 'User 3'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        });
-  }
-
-  Widget _buildUserTile(BuildContext context, String userName) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Colors.grey[300],
-        child: const Icon(CupertinoIcons.person_alt),
-      ),
-      title: Text(userName),
-      onTap: () {
-        Navigator.pop(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => ChatScreen(friendName: userName)),
-        );
-      },
     );
   }
 }

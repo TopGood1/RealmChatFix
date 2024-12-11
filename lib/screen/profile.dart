@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -15,9 +16,9 @@ class EditProfilePage extends StatefulWidget {
 class _EditProfileState extends State<EditProfilePage> {
   final _firestore = FirebaseFirestore.instance;
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _statusController = TextEditingController();
+  final TextEditingController _aboutController = TextEditingController();
   File? _avatar; // Untuk menyimpan file avatar sementara
-  String userId = "user_id_placeholder";
+  String userId = "";
 
   @override
   void initState() {
@@ -27,23 +28,41 @@ class _EditProfileState extends State<EditProfilePage> {
 
   Future<void> _loadUserData() async {
     try {
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(userId).get();
-      if (userDoc.exists) {
-        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-        _nameController.text = userData['name'] ?? '';
-        _statusController.text = userData['status'] ?? '';
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? loggedInEmail = prefs.getString('saved_email');
+
+      if (loggedInEmail != null) {
+        QuerySnapshot querySnapshot = await _firestore
+            .collection('profile')
+            .where('email', isEqualTo: loggedInEmail)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          DocumentSnapshot userDoc = querySnapshot.docs.first;
+
+          Map<String, dynamic> userData =
+              userDoc.data() as Map<String, dynamic>;
+
+          // Update UI dengan data yang dimuat
+          _nameController.text = userData['name'] ?? 'User';
+          _aboutController.text = userData['about'] ?? 'available'; // Set default "available"
+          userId = userDoc.id; // Simpan ID pengguna untuk pembaruan data
+        } else {
+          debugPrint("No user found with the provided email.");
+        }
+      } else {
+        debugPrint("Logged in email not found in SharedPreferences.");
       }
     } catch (e) {
-      debugPrint("Error loading user data : $e");
+      debugPrint("Error loading user data: $e");
     }
   }
 
   Future<void> _saveUserData() async {
     try {
-      await _firestore.collection('users').doc(userId).set({
+      await _firestore.collection('profile').doc(userId).set({
         'name': _nameController.text,
-        'status': _statusController.text,
+        'about': _aboutController.text, // Simpan field "about"
       }, SetOptions(merge: true));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile Updated Successfully!')),
@@ -59,6 +78,7 @@ class _EditProfileState extends State<EditProfilePage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('remember_me', false);
     await prefs.remove('saved_email');
+    await FirebaseAuth.instance.signOut();
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
@@ -192,9 +212,9 @@ class _EditProfileState extends State<EditProfilePage> {
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
             TextFormField(
-              controller: _statusController,
+              controller: _aboutController,
               decoration: InputDecoration(
-                hintText: 'Enter your Status',
+                hintText: 'Enter your About',
                 filled: true,
                 fillColor: Colors.grey[200],
                 border: OutlineInputBorder(
