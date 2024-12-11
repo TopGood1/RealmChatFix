@@ -28,27 +28,37 @@ class _EditProfileState extends State<EditProfilePage> {
 
   Future<void> _loadUserData() async {
     try {
+      // mengambil data dari email yang sedang login
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? loggedInEmail = prefs.getString('saved_email');
 
       if (loggedInEmail != null) {
+        // Cari dokumen pengguna berdasarkan email
         QuerySnapshot querySnapshot = await _firestore
             .collection('profile')
             .where('email', isEqualTo: loggedInEmail)
             .get();
 
         if (querySnapshot.docs.isNotEmpty) {
+          // Dokumen ditemukan
           DocumentSnapshot userDoc = querySnapshot.docs.first;
-
           Map<String, dynamic> userData =
               userDoc.data() as Map<String, dynamic>;
 
-          // Update UI dengan data yang dimuat
+          // Update UI dengan data pengguna
           _nameController.text = userData['name'] ?? 'User';
-          _aboutController.text = userData['about'] ?? 'available'; // Set default "available"
-          userId = userDoc.id; // Simpan ID pengguna untuk pembaruan data
+          _aboutController.text = userData['about'] ?? 'Available';
+          userId = userDoc.id; // Set userId
         } else {
-          debugPrint("No user found with the provided email.");
+          // Dokumen tidak ditemukan, buat dokumen baru
+          DocumentReference newUserRef =
+              await _firestore.collection('profile').add({
+            'name': 'User',
+            'about': 'available',
+            'email': loggedInEmail,
+          });
+          userId = newUserRef.id; // Set userId ke dokumen baru
+          _nameController.text = 'User';
         }
       } else {
         debugPrint("Logged in email not found in SharedPreferences.");
@@ -59,18 +69,29 @@ class _EditProfileState extends State<EditProfilePage> {
   }
 
   Future<void> _saveUserData() async {
+    if (userId.isEmpty) {
+      debugPrint("Error: userId is empty. Cannot save user data.");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Failed to save profile. User ID is missing.')),
+      );
+      return; // Hentikan proses jika userId kosong
+    }
+
     try {
       await _firestore.collection('profile').doc(userId).set({
         'name': _nameController.text,
-        'about': _aboutController.text, // Simpan field "about"
+        'about': _aboutController.text, // Misalnya Anda menambahkan field ini
       }, SetOptions(merge: true));
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile Updated Successfully!')),
       );
     } catch (e) {
       debugPrint("Error saving user data: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to Update Profile.')));
+        const SnackBar(content: Text('Failed to update profile.')),
+      );
     }
   }
 
