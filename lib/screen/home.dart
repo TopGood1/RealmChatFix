@@ -141,6 +141,19 @@ class _MainScreenState extends State<MainScreen>
 class ChatListScreen extends StatelessWidget {
   const ChatListScreen({super.key});
 
+  Future<String> _fetchUserName(String email) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      return snapshot.docs.first['name'] as String? ?? email;
+    }
+    return email; // Jika nama tidak ditemukan, gunakan email sebagai fallback
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentEmail = FirebaseAuth.instance.currentUser?.email;
@@ -168,7 +181,7 @@ class ChatListScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final chat = chats[index];
               final participants = chat['participants'] as List;
-              final otherUser = participants.firstWhere(
+              final otherUserEmail = participants.firstWhere(
                 (user) => user != currentEmail,
               );
               final lastMessage = chat['lastMessage'] ?? 'No message yet';
@@ -177,26 +190,46 @@ class ChatListScreen extends StatelessWidget {
                   ? DateFormat('hh:mm a').format(timestamp.toDate())
                   : '';
 
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.teal,
-                  child: Text(
-                    otherUser[0].toUpperCase(),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-                title: Text(otherUser),
-                subtitle: Text(lastMessage),
-                trailing: Text(formattedTime),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ChatScreen(userData: {
-                        'name': otherUser,
-                        'email': otherUser,
-                      }),
+              return FutureBuilder<String>(
+                future: _fetchUserName(otherUserEmail),
+                builder: (context, nameSnapshot) {
+                  if (!nameSnapshot.hasData) {
+                    return const ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.teal,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                        ),
+                      ),
+                      title: Text('Loading...'),
+                      subtitle: Text(''),
+                    );
+                  }
+
+                  final otherUserName = nameSnapshot.data!;
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.teal,
+                      child: Text(
+                        otherUserName[0].toUpperCase(),
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
+                    title: Text(otherUserName),
+                    subtitle: Text(lastMessage),
+                    trailing: Text(formattedTime),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatScreen(userData: {
+                            'name': otherUserName,
+                            'email': otherUserEmail,
+                          }),
+                        ),
+                      );
+                    },
                   );
                 },
               );
