@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:realmchat/screen/chat.dart'; 
+import 'package:realmchat/screen/chat.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key});
@@ -71,19 +71,16 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 leading: CircleAvatar(
                   backgroundColor: Colors.teal,
                   child: Text(
-                    (foundUser!['name'] ?? 'U')
-                        .substring(0, 1)
-                        .toUpperCase(), // Inisial nama dalam huruf besar
+                    (foundUser!['name'] ?? 'U').substring(0, 1), // Inisial asli
                     style: const TextStyle(color: Colors.white),
                   ),
                 ),
                 title: Text(
-                  (foundUser!['name'] ?? 'No Name').toUpperCase(), // Nama besar
+                  foundUser!['name'] ?? 'No Name', // Nama asli
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(
-                  (foundUser!['email'] ?? 'unknown@example.com')
-                      .toLowerCase(), // Email kecil
+                  foundUser!['email'] ?? 'unknown@example.com', // Email asli
                 ),
                 trailing: IconButton(
                   icon: const Icon(Icons.chat, color: Colors.teal),
@@ -112,7 +109,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Future<void> _handleSearchFriend() async {
-    String friendEmail = emailController.text.trim().toLowerCase();
+    String friendEmail = emailController.text.trim();
 
     if (friendEmail.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -150,7 +147,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Error fetching data: $e')),
       );
     } finally {
       setState(() {

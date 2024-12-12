@@ -31,9 +31,15 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
             const SizedBox(width: 10),
-            Text(
-              widget.userData['name'].toUpperCase(),
-              style: const TextStyle(color: Colors.white),
+            Expanded(
+              child: Text(
+                widget.userData['name'],
+                style: const TextStyle(
+                  color: Colors.white,
+                  overflow: TextOverflow.ellipsis, // Hindari overflow
+                ),
+                maxLines: 1, // Batasi hanya satu baris
+              ),
             ),
           ],
         ),
@@ -62,18 +68,22 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final message = messages[index];
-                    final isMe = message['sender'] == FirebaseAuth.instance.currentUser?.email;
+                    final isMe = message['sender'] ==
+                        FirebaseAuth.instance.currentUser?.email;
                     final timestamp = message['timestamp'] as Timestamp?;
                     final formattedTime = timestamp != null
-                        ? DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate())
+                        ? DateFormat('MMM dd, yyyy - hh:mm a')
+                            .format(timestamp.toDate())
                         : 'Unknown time';
 
                     return Column(
-                      crossAxisAlignment:
-                          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                      crossAxisAlignment: isMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
                       children: [
                         Container(
-                          margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                          margin: const EdgeInsets.symmetric(
+                              vertical: 5, horizontal: 10),
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: isMe ? Colors.teal : Colors.grey[300],
@@ -90,7 +100,8 @@ class _ChatScreenState extends State<ChatScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           child: Text(
                             formattedTime,
-                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.grey),
                           ),
                         ),
                       ],
@@ -135,56 +146,53 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendMessage() async {
-  final text = _messageController.text.trim();
-  final currentEmail = FirebaseAuth.instance.currentUser?.email;
+    final text = _messageController.text.trim();
+    final currentEmail = FirebaseAuth.instance.currentUser?.email;
 
-  if (text.isEmpty || currentEmail == null) return;
+    if (text.isEmpty || currentEmail == null) return;
 
-  setState(() {
-    _isSending = true;
-  });
-
-  try {
-    final chatId = _getChatId(widget.userData['email']);
-    final timestamp = FieldValue.serverTimestamp();
-
-    // Tambahkan pesan baru ke koleksi pesan
-    await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .add({
-      'text': text,
-      'sender': currentEmail,
-      'timestamp': timestamp,
-    });
-
-    // Perbarui metadata chat
-    await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(chatId)
-        .set({
-      'participants': [currentEmail, widget.userData['email']],
-      'lastMessage': text,
-      'timestamp': timestamp,
-    }, SetOptions(merge: true));
-
-    _messageController.clear();
-    _scrollController.animateTo(
-      0.0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOut,
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Failed to send message: $e')),
-    );
-  } finally {
     setState(() {
-      _isSending = false;
+      _isSending = true;
     });
+
+    try {
+      final chatId = _getChatId(widget.userData['email']);
+      final timestamp = FieldValue.serverTimestamp();
+
+      // Tambahkan pesan baru ke koleksi pesan
+      await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .add({
+        'text': text,
+        'sender': currentEmail,
+        'timestamp': timestamp,
+      });
+
+      // Perbarui metadata chat
+      await FirebaseFirestore.instance.collection('chats').doc(chatId).set({
+        'participants': [currentEmail, widget.userData['email']],
+        'lastMessage': text,
+        'timestamp': timestamp,
+      }, SetOptions(merge: true));
+
+      _messageController.clear();
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send message: $e')),
+      );
+    } finally {
+      setState(() {
+        _isSending = false;
+      });
+    }
   }
-}
 
   String _getChatId(String friendEmail) {
     final currentEmail = FirebaseAuth.instance.currentUser?.email;

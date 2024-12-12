@@ -49,6 +49,7 @@ dependencies:
   provider:
   intl: ^0.20.1
 
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
