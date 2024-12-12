@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:realmchat/screen/chat.dart'; 
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({super.key});
@@ -87,9 +88,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 trailing: IconButton(
                   icon: const Icon(Icons.chat, color: Colors.teal),
                   onPressed: () {
-                    // Logika untuk tombol chat
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Chat feature coming soon!')),
+                    // Navigasi ke halaman chat
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ChatScreen(userData: foundUser!),
+                      ),
                     );
                   },
                 ),

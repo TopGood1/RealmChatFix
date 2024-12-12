@@ -1,174 +1,170 @@
 import 'package:flutter/material.dart';
-import 'package:realmchat/main.dart';
-import 'contactdetail.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-class ChatScreen extends StatelessWidget {
-  final String friendName;
+class ChatScreen extends StatefulWidget {
+  final Map<String, dynamic> userData;
 
-  const ChatScreen({super.key, required this.friendName});
+  const ChatScreen({super.key, required this.userData});
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  bool _isSending = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: customSwatch,
         title: Row(
           children: [
-            const Icon(CupertinoIcons.person_alt_circle, color: Colors.white,),
+            CircleAvatar(
+              backgroundColor: Colors.teal,
+              child: Text(
+                widget.userData['name'].substring(0, 1).toUpperCase(),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
             const SizedBox(width: 10),
             Text(
-              friendName,
+              widget.userData['name'].toUpperCase(),
               style: const TextStyle(color: Colors.white),
-              ),
+            ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {
-              showMenu(
-                context: context,
-                position:
-                    const RelativeRect.fromLTRB(100, 80, 0, 0), // Atur posisi
-                items: [
-                  const PopupMenuItem(
-                    value: 'view_contact',
-                    child: Text('View Contact'),
-                  ),
-                ],
-              ).then((value) {
-                if (value == 'view_contact') {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ContactDetailScreen(
-                        friendName: friendName, phoneNumber: '0812-5049-2326',
-                        // bisa tambahkan parameter lain seperti nomor kontak di sini
-                      ),
-                    ),
-                  );
-                }
-              });
-            },
-          ),
-        ],
+        backgroundColor: Colors.teal,
       ),
       body: Column(
         children: [
-          //Bagian dari Chat
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(10),
-              children: const [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: BubbleMessage(
-                    message: "Hi! How are you?",
-                    isSentByMe: false,
-                    time: "10.40 AM",
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: BubbleMessage(
-                    message: "I'm good! How about you?",
-                    isSentByMe: true,
-                    time: "10:42 AM",
-                  ),
-                ),
-              ],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('chats')
+                  .doc(_getChatId(widget.userData['email']))
+                  .collection('messages')
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final messages = snapshot.data?.docs ?? [];
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  reverse: true,
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final message = messages[index];
+                    final isMe = message['sender'] == FirebaseAuth.instance.currentUser?.email;
+
+                    return Align(
+                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.teal : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          message['text'],
+                          style: TextStyle(
+                            color: isMe ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
           ),
-
-          //Menampilkan Box Input
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+            padding: const EdgeInsets.all(10.0),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
+                    controller: _messageController,
                     decoration: InputDecoration(
-                        hintText: 'Type a message...',
-                        filled: true,
-                        fillColor: Colors.grey[200],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
-                        )),
+                      hintText: 'Type a message',
+                      filled: true,
+                      fillColor: Colors.grey[200],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 10),
                 IconButton(
                   icon: Icon(
-                    Icons.send,
-                    color: customSwatch,
+                    _isSending ? Icons.hourglass_empty : Icons.send,
+                    color: Colors.teal,
                   ),
-                  onPressed: () {},
-                )
+                  onPressed: _isSending ? null : _sendMessage,
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
   }
-}
 
-class BubbleMessage extends StatelessWidget {
-  final String message;
-  final bool isSentByMe;
-  final String time;
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    final currentEmail = FirebaseAuth.instance.currentUser?.email;
 
-  const BubbleMessage({
-    super.key,
-    required this.message,
-    required this.isSentByMe,
-    required this.time,
-  });
+    if (text.isEmpty || currentEmail == null) return;
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment:
-          isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          margin: const EdgeInsets.symmetric(vertical: 5),
-          decoration: BoxDecoration(
-            color: isSentByMe ? customSwatch : Colors.grey[300],
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(10),
-              topRight: const Radius.circular(10),
-              bottomLeft: isSentByMe
-                  ? const Radius.circular(10)
-                  : const Radius.circular(0),
-              bottomRight: isSentByMe
-                  ? const Radius.circular(0)
-                  : const Radius.circular(10),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                message,
-                style: TextStyle(
-                  color: isSentByMe ? Colors.white : Colors.black,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                time,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: isSentByMe ? Colors.white70 : Colors.black54,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+    setState(() {
+      _isSending = true;
+    });
+
+    try {
+      final chatId = _getChatId(widget.userData['email']);
+      await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .add({
+        'text': text,
+        'sender': currentEmail,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      _messageController.clear();
+      _scrollController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send message: $e')),
+      );
+    } finally {
+      setState(() {
+        _isSending = false;
+      });
+    }
+  }
+
+  String _getChatId(String friendEmail) {
+    final currentEmail = FirebaseAuth.instance.currentUser?.email;
+    if (currentEmail == null) {
+      throw Exception('User is not logged in');
+    }
+    return currentEmail.hashCode <= friendEmail.hashCode
+        ? '$currentEmail-$friendEmail'
+        : '$friendEmail-$currentEmail';
   }
 }
