@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class ChatScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -62,23 +63,37 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     final message = messages[index];
                     final isMe = message['sender'] == FirebaseAuth.instance.currentUser?.email;
+                    final timestamp = message['timestamp'] as Timestamp?;
+                    final formattedTime = timestamp != null
+                        ? DateFormat('MMM dd, yyyy - hh:mm a').format(timestamp.toDate())
+                        : 'Unknown time';
 
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.teal : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          message['text'],
-                          style: TextStyle(
-                            color: isMe ? Colors.white : Colors.black,
+                    return Column(
+                      crossAxisAlignment:
+                          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isMe ? Colors.teal : Colors.grey[300],
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            message['text'],
+                            style: TextStyle(
+                              color: isMe ? Colors.white : Colors.black,
+                            ),
                           ),
                         ),
-                      ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            formattedTime,
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 );
