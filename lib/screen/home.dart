@@ -22,7 +22,6 @@ class _MainScreenState extends State<MainScreen>
   @override
   void initState() {
     super.initState();
-    // Inisialisasi TabController dengan dua tab
     _tabController = TabController(length: 2, vsync: this);
   }
 
