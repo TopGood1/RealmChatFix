@@ -35,7 +35,7 @@ class _EditProfileState extends State<EditProfilePage> {
       if (loggedInEmail != null) {
         // Cari dokumen pengguna berdasarkan email
         QuerySnapshot querySnapshot = await _firestore
-            .collection('profile')
+            .collection('users')
             .where('email', isEqualTo: loggedInEmail)
             .get();
 
@@ -52,7 +52,7 @@ class _EditProfileState extends State<EditProfilePage> {
         } else {
           // Dokumen tidak ditemukan, buat dokumen baru
           DocumentReference newUserRef =
-              await _firestore.collection('profile').add({
+              await _firestore.collection('users').add({
             'name': 'User',
             'about': 'available',
             'email': loggedInEmail,
@@ -79,7 +79,7 @@ class _EditProfileState extends State<EditProfilePage> {
     }
 
     try {
-      await _firestore.collection('profile').doc(userId).set({
+      await _firestore.collection('users').doc(userId).set({
         'name': _nameController.text,
         'about': _aboutController.text, // Misalnya Anda menambahkan field ini
       }, SetOptions(merge: true));
