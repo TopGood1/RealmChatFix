@@ -1,14 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:realmchat/screen/contacts.dart';
 import 'package:realmchat/screen/privacypolicy.dart';
 import 'package:realmchat/screen/termsandcondition.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../main.dart';
 import 'profile.dart';
-import 'chat.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -165,13 +161,7 @@ class ChatEmptyState extends StatelessWidget {
           const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
-              // Navigasi ke ChatScreen langsung
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ChatScreen(friendName: "Friend Name"),
-                ),
-              );
+              // Fungsi tombol tidak diimplementasikan
             },
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
@@ -201,32 +191,6 @@ class ContactsTab extends StatefulWidget {
 
 class _ContactsTabState extends State<ContactsTab> {
   final List<String> _friends = []; // Daftar teman yang ditambahkan
-  final List<String> _friendRequests = []; // Daftar permintaan teman
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFriendRequests(); // Muat permintaan teman saat widget diinisialisasi
-  }
-
-  // Fungsi untuk mengambil daftar permintaan teman dari Firestore
-  void _loadFriendRequests() async {
-    String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-
-    // Query permintaan teman untuk pengguna saat ini
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('friend_requests')
-        .where('to', isEqualTo: currentUserId)
-        .get();
-
-    setState(() {
-      _friendRequests.clear();
-      for (var doc in snapshot.docs) {
-        Map<String, dynamic> requestData = doc.data() as Map<String, dynamic>;
-        _friendRequests.add(requestData['fromEmail']);
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -246,120 +210,18 @@ class _ContactsTabState extends State<ContactsTab> {
         backgroundColor: customSwatch,
         child: const Icon(CupertinoIcons.person_add),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child:
-                _friends.isEmpty ? _buildNoFriendsState() : _buildFriendsList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Fungsi untuk menampilkan UI saat tidak ada teman
-  Widget _buildNoFriendsState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Icon(
-            CupertinoIcons.person_alt_circle,
-            color: customSwatch,
-            size: 80,
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            "No friends added yet.",
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.teal,
-              fontWeight: FontWeight.bold,
+      body: _friends.isEmpty
+          ? const Center(
+              child: Text("No friends added yet."),
+            )
+          : ListView.builder(
+              itemCount: _friends.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(_friends[index]),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () async {
-              final newFriend = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ContactsScreen()),
-              );
-              if (newFriend != null && newFriend.isNotEmpty) {
-                setState(() {
-                  _friends.add(newFriend);
-                });
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-              backgroundColor: customSwatch,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            child: const Text(
-              "Add Friend",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Fungsi untuk menampilkan daftar teman
-  Widget _buildFriendsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(10),
-      itemCount: _friends.length,
-      itemBuilder: (context, index) {
-        return Column(
-          children: [
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.grey[300],
-                child: const Icon(CupertinoIcons.person_alt),
-              ),
-              title: Text(_friends[index]),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      FontAwesomeIcons.solidComment,
-                      color: Colors.teal,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ChatScreen(friendName: _friends[index]),
-                        ),
-                      );
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      FontAwesomeIcons.solidTrashCan,
-                      color: Colors.red,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _friends.removeAt(index);
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const Divider(),
-          ],
-        );
-      },
     );
   }
 }

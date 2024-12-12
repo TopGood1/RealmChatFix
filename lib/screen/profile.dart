@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:realmchat/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import '../main.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -17,7 +15,6 @@ class _EditProfileState extends State<EditProfilePage> {
   final _firestore = FirebaseFirestore.instance;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _aboutController = TextEditingController();
-  File? _avatar; // Untuk menyimpan file avatar sementara
   String userId = "";
 
   @override
@@ -103,61 +100,6 @@ class _EditProfileState extends State<EditProfilePage> {
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
-  Future<void> _showAvatarOptions() async {
-    showModalBottomSheet(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera),
-                title: const Text('Take Photo'),
-                onTap: () async {
-                  Navigator.of(context).pop();
-                  final pickedFile = await ImagePicker().pickImage(
-                    source: ImageSource.camera,
-                  );
-                  if (pickedFile != null) {
-                    setState(() {
-                      _avatar = File(pickedFile.path);
-                    });
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choose from Gallery'),
-                onTap: () async {
-                  Navigator.of(context).pop();
-                  final pickedFile = await ImagePicker().pickImage(
-                    source: ImageSource.gallery,
-                  );
-                  if (pickedFile != null) {
-                    setState(() {
-                      _avatar = File(pickedFile.path);
-                    });
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete),
-                title: const Text('Remove Avatar'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  setState(() {
-                    _avatar = null;
-                  });
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -181,35 +123,6 @@ class _EditProfileState extends State<EditProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundImage: _avatar != null
-                        ? FileImage(_avatar!)
-                        : const AssetImage('assets/avatar_placeholder.png')
-                            as ImageProvider,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: _showAvatarOptions,
-                      child: CircleAvatar(
-                        radius: 15,
-                        backgroundColor: customSwatch,
-                        child: const Icon(
-                          Icons.edit,
-                          color: Colors.white,
-                          size: 15,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 30),
             const Text(
               'Name',
