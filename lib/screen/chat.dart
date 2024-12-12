@@ -135,43 +135,56 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendMessage() async {
-    final text = _messageController.text.trim();
-    final currentEmail = FirebaseAuth.instance.currentUser?.email;
+  final text = _messageController.text.trim();
+  final currentEmail = FirebaseAuth.instance.currentUser?.email;
 
-    if (text.isEmpty || currentEmail == null) return;
+  if (text.isEmpty || currentEmail == null) return;
 
-    setState(() {
-      _isSending = true;
+  setState(() {
+    _isSending = true;
+  });
+
+  try {
+    final chatId = _getChatId(widget.userData['email']);
+    final timestamp = FieldValue.serverTimestamp();
+
+    // Tambahkan pesan baru ke koleksi pesan
+    await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .add({
+      'text': text,
+      'sender': currentEmail,
+      'timestamp': timestamp,
     });
 
-    try {
-      final chatId = _getChatId(widget.userData['email']);
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(chatId)
-          .collection('messages')
-          .add({
-        'text': text,
-        'sender': currentEmail,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+    // Perbarui metadata chat
+    await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(chatId)
+        .set({
+      'participants': [currentEmail, widget.userData['email']],
+      'lastMessage': text,
+      'timestamp': timestamp,
+    }, SetOptions(merge: true));
 
-      _messageController.clear();
-      _scrollController.animateTo(
-        0.0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send message: $e')),
-      );
-    } finally {
-      setState(() {
-        _isSending = false;
-      });
-    }
+    _messageController.clear();
+    _scrollController.animateTo(
+      0.0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to send message: $e')),
+    );
+  } finally {
+    setState(() {
+      _isSending = false;
+    });
   }
+}
 
   String _getChatId(String friendEmail) {
     final currentEmail = FirebaseAuth.instance.currentUser?.email;

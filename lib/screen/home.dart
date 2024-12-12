@@ -1,5 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:realmchat/screen/chat.dart';
 import 'package:realmchat/screen/contacts.dart';
 import 'package:realmchat/screen/privacypolicy.dart';
 import 'package:realmchat/screen/termsandcondition.dart';
@@ -126,7 +130,7 @@ class _MainScreenState extends State<MainScreen>
       body: TabBarView(
         controller: _tabController,
         children: const [
-          ChatEmptyState(),
+          ChatListScreen(),
           ContactsTab(),
         ],
       ),
@@ -134,48 +138,71 @@ class _MainScreenState extends State<MainScreen>
   }
 }
 
-class ChatEmptyState extends StatelessWidget {
-  const ChatEmptyState({super.key});
+class ChatListScreen extends StatelessWidget {
+  const ChatListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Icon(
-            const IconData(0xf03b7, fontFamily: 'MaterialIcons'), // wechat_rounded
-            color: customSwatch,
-            size: 80,
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            "You haven't chat yet",
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.teal,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              // Fungsi tombol tidak diimplementasikan
+    final currentEmail = FirebaseAuth.instance.currentUser?.email;
+
+    return Scaffold(
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('chats')
+            .where('participants', arrayContains: currentEmail)
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final chats = snapshot.data?.docs ?? [];
+
+          if (chats.isEmpty) {
+            return const Center(child: Text("No chats yet."));
+          }
+
+          return ListView.builder(
+            itemCount: chats.length,
+            itemBuilder: (context, index) {
+              final chat = chats[index];
+              final participants = chat['participants'] as List;
+              final otherUser = participants.firstWhere(
+                (user) => user != currentEmail,
+              );
+              final lastMessage = chat['lastMessage'] ?? 'No message yet';
+              final timestamp = chat['timestamp'] as Timestamp?;
+              final formattedTime = timestamp != null
+                  ? DateFormat('hh:mm a').format(timestamp.toDate())
+                  : '';
+
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.teal,
+                  child: Text(
+                    otherUser[0].toUpperCase(),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                title: Text(otherUser),
+                subtitle: Text(lastMessage),
+                trailing: Text(formattedTime),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChatScreen(userData: {
+                        'name': otherUser,
+                        'email': otherUser,
+                      }),
+                    ),
+                  );
+                },
+              );
             },
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-              backgroundColor: customSwatch,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            child: const Text('Start Chatting',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                )),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
