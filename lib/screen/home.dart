@@ -181,9 +181,16 @@ class ChatListScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final chat = chats[index];
               final participants = chat['participants'] as List;
+
               final otherUserEmail = participants.firstWhere(
                 (user) => user != currentEmail,
+                orElse: () => null, // Penanganan jika tidak ada user lain
               );
+
+              if (otherUserEmail == null) {
+                return const SizedBox(); // Lewati jika user lain tidak ditemukan
+              }
+
               final lastMessage = chat['lastMessage'] ?? 'No message yet';
               final timestamp = chat['timestamp'] as Timestamp?;
               final formattedTime = timestamp != null
@@ -250,6 +257,7 @@ class ContactsTab extends StatefulWidget {
 
 class _ContactsTabState extends State<ContactsTab> {
   final List<Map<String, dynamic>> _friends = []; // Daftar teman
+  bool _isLoading = true; // Status loading
 
   @override
   void initState() {
@@ -259,7 +267,12 @@ class _ContactsTabState extends State<ContactsTab> {
 
   Future<void> _loadContacts() async {
     final currentEmail = FirebaseAuth.instance.currentUser?.email;
-    if (currentEmail == null) return;
+    if (currentEmail == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
 
     try {
       final snapshot = await FirebaseFirestore.instance
@@ -269,62 +282,45 @@ class _ContactsTabState extends State<ContactsTab> {
 
       final Map<String, Map<String, dynamic>> contacts = {};
 
-      // Memuat data pengguna lain dari chat
       for (var doc in snapshot.docs) {
         final participants = doc['participants'] as List;
-        final otherUserEmail = participants.firstWhere((user) => user != currentEmail);
+        final otherUserEmail =
+            participants.firstWhere((user) => user != currentEmail, orElse: () => null);
 
-        final nameSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .where('email', isEqualTo: otherUserEmail)
-            .limit(1)
-            .get();
+        if (otherUserEmail != null) {
+          final nameSnapshot = await FirebaseFirestore.instance
+              .collection('users')
+              .where('email', isEqualTo: otherUserEmail)
+              .limit(1)
+              .get();
 
-        if (nameSnapshot.docs.isNotEmpty) {
-          final name = nameSnapshot.docs.first['name'] as String? ?? otherUserEmail;
-          contacts[otherUserEmail] = {'name': name, 'email': otherUserEmail};
+          if (nameSnapshot.docs.isNotEmpty) {
+            final name = nameSnapshot.docs.first['name'] as String? ?? otherUserEmail;
+            contacts[otherUserEmail] = {'name': name, 'email': otherUserEmail};
+          }
         }
       }
 
-      // Perbarui state dengan data yang terurut
       setState(() {
         _friends.clear();
         _friends.addAll(contacts.values);
-        _friends.sort((a, b) => a['name'].compareTo(b['name'])); // Sorting berdasarkan nama
+        _friends.sort((a, b) => a['name'].compareTo(b['name'])); // Sorting
+        _isLoading = false;
       });
     } catch (e) {
       debugPrint('Error loading contacts: $e');
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _deleteContact(String email) async {
-    final currentEmail = FirebaseAuth.instance.currentUser?.email;
-    if (currentEmail == null) return;
-
-    try {
-      // Hapus chat dari Firestore
-      final chatQuery = await FirebaseFirestore.instance
-          .collection('chats')
-          .where('participants', arrayContains: currentEmail)
-          .get();
-
-      WriteBatch batch = FirebaseFirestore.instance.batch();
-      for (var doc in chatQuery.docs) {
-        final participants = doc['participants'] as List;
-        if (participants.contains(email)) {
-          batch.delete(doc.reference);
-        }
-      }
-      await batch.commit();
-
-      // Perbarui state setelah penghapusan
-      setState(() {
-        _friends.removeWhere((friend) => friend['email'] == email);
-      });
-    } catch (e) {
-      debugPrint('Error deleting contact: $e');
-    }
-  }
+  setState(() {
+    // Hapus kontak dari daftar tampilan (state _friends)
+    _friends.removeWhere((friend) => friend['email'] == email);
+  });
+}
 
   @override
   Widget build(BuildContext context) {
@@ -347,50 +343,52 @@ class _ContactsTabState extends State<ContactsTab> {
         backgroundColor: customSwatch,
         child: const Icon(CupertinoIcons.person_add),
       ),
-      body: _friends.isEmpty
-          ? const Center(
-              child: Text("No contacts yet."),
-            )
-          : ListView.builder(
-              itemCount: _friends.length,
-              itemBuilder: (context, index) {
-                final friend = _friends[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.teal,
-                    child: Text(
-                      friend['name'][0].toUpperCase(),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  title: Text(friend['name']),
-                  subtitle: Text(friend['email']),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.chat, color: Colors.teal),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ChatScreen(userData: {
-                                'name': friend['name'],
-                                'email': friend['email'],
-                              }),
-                            ),
-                          );
-                        },
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _friends.isEmpty
+              ? const Center(
+                  child: Text("No contacts yet."),
+                )
+              : ListView.builder(
+                  itemCount: _friends.length,
+                  itemBuilder: (context, index) {
+                    final friend = _friends[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.teal,
+                        child: Text(
+                          friend['name'][0].toUpperCase(),
+                          style: const TextStyle(color: Colors.white),
+                        ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteContact(friend['email']),
+                      title: Text(friend['name']),
+                      subtitle: Text(friend['email']),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chat, color: Colors.teal),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ChatScreen(userData: {
+                                    'name': friend['name'],
+                                    'email': friend['email'],
+                                  }),
+                                ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteContact(friend['email']),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                    );
+                  },
+                ),
     );
   }
 }
