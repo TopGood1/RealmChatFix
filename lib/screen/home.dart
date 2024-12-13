@@ -316,11 +316,69 @@ class _ContactsTabState extends State<ContactsTab> {
   }
 
   Future<void> _deleteContact(String email) async {
-  setState(() {
-    // Hapus kontak dari daftar tampilan (state _friends)
-    _friends.removeWhere((friend) => friend['email'] == email);
-  });
-}
+    final currentEmail = FirebaseAuth.instance.currentUser?.email;
+
+    if (currentEmail == null) {
+      debugPrint("No current user is logged in.");
+      return;
+    }
+
+    try {
+      // Hapus kontak dari tampilan (state _friends)
+      setState(() {
+        _friends.removeWhere((friend) => friend['email'] == email);
+      });
+
+      // Cari dokumen obrolan yang melibatkan kedua peserta
+      final chatQuery = await FirebaseFirestore.instance
+          .collection('chats')
+          .where('participants', arrayContains: currentEmail)
+          .get();
+
+      for (var doc in chatQuery.docs) {
+        final participants = doc['participants'] as List;
+        if (participants.contains(email)) {
+          // Hapus dokumen obrolan terkait
+          await FirebaseFirestore.instance
+              .collection('chats')
+              .doc(doc.id)
+              .delete();
+        }
+      }
+
+      debugPrint("Contact and related chats deleted successfully.");
+    } catch (e) {
+      debugPrint("Error deleting contact: $e");
+    }
+  }
+
+  Future<void> _confirmDeleteContact(String email) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirm Deletion'),
+          content: const Text(
+              'Are you sure you want to delete this contact? This will also delete related chat data.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      await _deleteContact(email);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -382,7 +440,7 @@ class _ContactsTabState extends State<ContactsTab> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteContact(friend['email']),
+                            onPressed: () => _confirmDeleteContact(friend['email']),
                           ),
                         ],
                       ),
