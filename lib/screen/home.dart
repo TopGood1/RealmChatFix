@@ -27,6 +27,9 @@ class _MainScreenState extends State<MainScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _searchController.addListener(() {
+      setState(() {});
+    });
   }
 
   @override
@@ -129,29 +132,52 @@ class _MainScreenState extends State<MainScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          ChatListScreen(),
-          ContactsTab(),
+        children: [
+          ChatListScreen(searchQuery: _searchController.text),
+          const ContactsTab(),
         ],
       ),
     );
   }
 }
 
-class ChatListScreen extends StatelessWidget {
-  const ChatListScreen({super.key});
+class ChatListScreen extends StatefulWidget {
+  final String searchQuery;
 
-  Future<String> _fetchUserName(String email) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('email', isEqualTo: email)
-        .limit(1)
-        .get();
+  const ChatListScreen({super.key, required this.searchQuery});
 
-    if (snapshot.docs.isNotEmpty) {
-      return snapshot.docs.first['name'] as String? ?? email;
+  @override
+  State<ChatListScreen> createState() => _ChatListScreenState();
+}
+
+class _ChatListScreenState extends State<ChatListScreen> {
+  Map<String, String> _userCache = {};
+
+  Future<void> _preloadUserNames(List<DocumentSnapshot> chats) async {
+    final currentEmail = FirebaseAuth.instance.currentUser?.email;
+
+    for (var chat in chats) {
+      final participants = chat['participants'] as List;
+      final otherUserEmail = participants.firstWhere(
+        (user) => user != currentEmail,
+        orElse: () => null,
+      );
+
+      if (otherUserEmail != null && !_userCache.containsKey(otherUserEmail)) {
+        final snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: otherUserEmail)
+            .limit(1)
+            .get();
+
+        if (snapshot.docs.isNotEmpty) {
+          _userCache[otherUserEmail] =
+              snapshot.docs.first['name'] as String? ?? otherUserEmail;
+        } else {
+          _userCache[otherUserEmail] = otherUserEmail;
+        }
+      }
     }
-    return email; // Jika nama tidak ditemukan, akan menggunakan email sebagai fallback
   }
 
   @override
@@ -176,44 +202,52 @@ class ChatListScreen extends StatelessWidget {
             return const Center(child: Text("No chats yet."));
           }
 
-          return ListView.builder(
-            itemCount: chats.length,
-            itemBuilder: (context, index) {
-              final chat = chats[index];
-              final participants = chat['participants'] as List;
-
-              final otherUserEmail = participants.firstWhere(
-                (user) => user != currentEmail,
-                orElse: () => null, // Penanganan jika tidak ada user lain
-              );
-
-              if (otherUserEmail == null) {
-                return const SizedBox(); // Lewati jika user lain tidak ditemukan
+          return FutureBuilder(
+            future: _preloadUserNames(chats),
+            builder: (context, preloadSnapshot) {
+              if (preloadSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
               }
 
-              final lastMessage = chat['lastMessage'] ?? 'No message yet';
-              final timestamp = chat['timestamp'] as Timestamp?;
-              final formattedTime = timestamp != null
-                  ? DateFormat('hh:mm a').format(timestamp.toDate())
-                  : '';
+              final filteredChats = chats.where((chat) {
+                final participants = chat['participants'] as List;
+                final otherUserEmail = participants.firstWhere(
+                  (user) => user != currentEmail,
+                  orElse: () => null,
+                );
 
-              return FutureBuilder<String>(
-                future: _fetchUserName(otherUserEmail),
-                builder: (context, nameSnapshot) {
-                  if (!nameSnapshot.hasData) {
-                    return const ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.teal,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                        ),
-                      ),
-                      title: Text('Loading...'),
-                      subtitle: Text(''),
-                    );
+                if (otherUserEmail == null) return false;
+
+                final otherUserName =
+                    _userCache[otherUserEmail]?.toLowerCase() ?? "";
+
+                return otherUserName
+                    .contains(widget.searchQuery.toLowerCase());
+              }).toList();
+
+              return ListView.builder(
+                itemCount: filteredChats.length,
+                itemBuilder: (context, index) {
+                  final chat = filteredChats[index];
+                  final participants = chat['participants'] as List;
+
+                  final otherUserEmail = participants.firstWhere(
+                    (user) => user != currentEmail,
+                    orElse: () => null,
+                  );
+
+                  if (otherUserEmail == null) {
+                    return const SizedBox();
                   }
 
-                  final otherUserName = nameSnapshot.data!;
+                  final lastMessage = chat['lastMessage'] ?? 'No message yet';
+                  final timestamp = chat['timestamp'] as Timestamp?;
+                  final formattedTime = timestamp != null
+                      ? DateFormat('hh:mm a').format(timestamp.toDate())
+                      : '';
+
+                  final otherUserName =
+                      _userCache[otherUserEmail] ?? otherUserEmail;
 
                   return ListTile(
                     leading: CircleAvatar(
