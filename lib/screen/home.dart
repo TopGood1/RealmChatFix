@@ -151,7 +151,7 @@ class ChatListScreen extends StatelessWidget {
     if (snapshot.docs.isNotEmpty) {
       return snapshot.docs.first['name'] as String? ?? email;
     }
-    return email; // Jika nama tidak ditemukan, gunakan email sebagai fallback
+    return email; // Jika nama tidak ditemukan, akan menggunakan email sebagai fallback
   }
 
   @override
@@ -249,7 +249,82 @@ class ContactsTab extends StatefulWidget {
 }
 
 class _ContactsTabState extends State<ContactsTab> {
-  final List<String> _friends = []; // Daftar teman yang ditambahkan
+  final List<Map<String, dynamic>> _friends = []; // Daftar teman
+
+  @override
+  void initState() {
+    super.initState();
+    _loadContacts();
+  }
+
+  Future<void> _loadContacts() async {
+    final currentEmail = FirebaseAuth.instance.currentUser?.email;
+    if (currentEmail == null) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('chats')
+          .where('participants', arrayContains: currentEmail)
+          .get();
+
+      final Map<String, Map<String, dynamic>> contacts = {};
+
+      // Memuat data pengguna lain dari chat
+      for (var doc in snapshot.docs) {
+        final participants = doc['participants'] as List;
+        final otherUserEmail = participants.firstWhere((user) => user != currentEmail);
+
+        final nameSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: otherUserEmail)
+            .limit(1)
+            .get();
+
+        if (nameSnapshot.docs.isNotEmpty) {
+          final name = nameSnapshot.docs.first['name'] as String? ?? otherUserEmail;
+          contacts[otherUserEmail] = {'name': name, 'email': otherUserEmail};
+        }
+      }
+
+      // Perbarui state dengan data yang terurut
+      setState(() {
+        _friends.clear();
+        _friends.addAll(contacts.values);
+        _friends.sort((a, b) => a['name'].compareTo(b['name'])); // Sorting berdasarkan nama
+      });
+    } catch (e) {
+      debugPrint('Error loading contacts: $e');
+    }
+  }
+
+  Future<void> _deleteContact(String email) async {
+    final currentEmail = FirebaseAuth.instance.currentUser?.email;
+    if (currentEmail == null) return;
+
+    try {
+      // Hapus chat dari Firestore
+      final chatQuery = await FirebaseFirestore.instance
+          .collection('chats')
+          .where('participants', arrayContains: currentEmail)
+          .get();
+
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+      for (var doc in chatQuery.docs) {
+        final participants = doc['participants'] as List;
+        if (participants.contains(email)) {
+          batch.delete(doc.reference);
+        }
+      }
+      await batch.commit();
+
+      // Perbarui state setelah penghapusan
+      setState(() {
+        _friends.removeWhere((friend) => friend['email'] == email);
+      });
+    } catch (e) {
+      debugPrint('Error deleting contact: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -262,7 +337,10 @@ class _ContactsTabState extends State<ContactsTab> {
           );
           if (newFriend != null && newFriend.isNotEmpty) {
             setState(() {
-              _friends.add(newFriend);
+              if (!_friends.any((friend) => friend['email'] == newFriend['email'])) {
+                _friends.add(newFriend);
+                _friends.sort((a, b) => a['name'].compareTo(b['name']));
+              }
             });
           }
         },
@@ -271,13 +349,45 @@ class _ContactsTabState extends State<ContactsTab> {
       ),
       body: _friends.isEmpty
           ? const Center(
-              child: Text("No friends added yet."),
+              child: Text("No contacts yet."),
             )
           : ListView.builder(
               itemCount: _friends.length,
               itemBuilder: (context, index) {
+                final friend = _friends[index];
                 return ListTile(
-                  title: Text(_friends[index]),
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.teal,
+                    child: Text(
+                      friend['name'][0].toUpperCase(),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  title: Text(friend['name']),
+                  subtitle: Text(friend['email']),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chat, color: Colors.teal),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ChatScreen(userData: {
+                                'name': friend['name'],
+                                'email': friend['email'],
+                              }),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _deleteContact(friend['email']),
+                      ),
+                    ],
+                  ),
                 );
               },
             ),
