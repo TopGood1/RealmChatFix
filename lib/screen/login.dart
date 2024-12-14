@@ -48,13 +48,13 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _handleLogin() async {
+ Future<void> _handleLogin() async {
   setState(() {
     _isLoading = true;
   });
 
   try {
-    // Login menggunakan FirebaseAuth
+    // Login menggunakan Firebase Auth
     final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
@@ -63,35 +63,36 @@ class _LoginScreenState extends State<LoginScreen> {
     final User? user = userCredential.user;
 
     if (user != null) {
-      // Simpan status "Remember Me"
-      await _handleRememberMe();
+      await _handleRememberMe(); // Menyimpan email jika Remember Me diaktifkan
 
-      // Cek apakah pengguna memiliki nama yang diatur di Firestore
-      final DocumentSnapshot userDoc = await FirebaseFirestore.instance
+      // Cari pengguna berdasarkan email, bukan UID
+      final QuerySnapshot userQuery = await FirebaseFirestore.instance
           .collection('users')
-          .doc(user.uid)
+          .where('email', isEqualTo: user.email)
+          .limit(1) // Ambil hanya satu dokumen
           .get();
 
-      if (userDoc.exists) {
+      if (userQuery.docs.isNotEmpty) {
+        final userDoc = userQuery.docs.first;
         final data = userDoc.data() as Map<String, dynamic>;
-        final userName = data['name'] ?? '';
+        final name = data['name'] ?? '';
 
-        if (userName.isEmpty || userName == 'User') {
-          // Nama belum diatur, arahkan ke halaman Edit Profile
-          Navigator.pushReplacementNamed(context, '/edit-profile');
-        } else {
-          // Nama sudah diatur, arahkan ke halaman Home
+        if (name.isNotEmpty) {
+          // Jika 'name' sudah diisi, arahkan ke halaman home
           Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          // Jika 'name' kosong, arahkan ke halaman edit profil
+          Navigator.pushReplacementNamed(context, '/edit-profile');
         }
       } else {
-        // Jika dokumen tidak ditemukan, buat dokumen baru
+        // Jika dokumen pengguna tidak ditemukan, buat data default
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'name': '',
           'about': '',
           'email': user.email,
+          'profileCompleted': false,
         });
 
-        // Arahkan ke halaman Edit Profile
         Navigator.pushReplacementNamed(context, '/edit-profile');
       }
     }

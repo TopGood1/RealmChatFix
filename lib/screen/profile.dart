@@ -117,12 +117,71 @@ class _EditProfileState extends State<EditProfilePage> {
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
+  Future<void> _deleteAccount() async {
+    try {
+      // Hapus data pengguna di Firestore
+      await _firestore.collection('users').doc(userId).delete();
+
+      // Hapus akun pengguna di Firebase Authentication
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        await currentUser.delete();
+      }
+
+      // Hapus data di SharedPreferences
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('remember_me', false);
+      await prefs.remove('saved_email');
+
+      // Setelah berhasil, navigasi ke halaman login
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account Deleted Successfully!')),
+      );
+    } catch (e) {
+      debugPrint("Error deleting account: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to delete account.')),
+      );
+    }
+  }
+
+Future<void> _showDeleteAccountDialog() async {
+  // Menampilkan dialog konfirmasi penghapusan akun
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Confirm Account Deletion'),
+        content: const Text(
+            'Are you sure you want to delete your account and all data? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Menutup dialog
+            },
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _deleteAccount(); // Directly call _deleteAccount
+            },
+            child: const Text('Yes'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             Navigator.of(context).pop();
           },
@@ -213,6 +272,30 @@ class _EditProfileState extends State<EditProfilePage> {
                 ),
                 child: const Text(
                   'Logout',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            Center(
+              child: ElevatedButton(
+                onPressed:
+                    _showDeleteAccountDialog, // Menggunakan dialog konfirmasi
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 100,
+                    vertical: 15,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  'Delete Account',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
