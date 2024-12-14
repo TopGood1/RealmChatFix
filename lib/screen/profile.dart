@@ -25,9 +25,19 @@ class _EditProfileState extends State<EditProfilePage> {
 
   Future<void> _loadUserData() async {
     try {
-      // mengambil data dari email yang sedang login
+      String? loggedInEmail;
+
+      // Cek apakah ada email yang disimpan di SharedPreferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? loggedInEmail = prefs.getString('saved_email');
+      loggedInEmail = prefs.getString('saved_email');
+
+      // Jika tidak ada, ambil email dari FirebaseAuth.currentUser
+      if (loggedInEmail == null) {
+        User? currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          loggedInEmail = currentUser.email;
+        }
+      }
 
       if (loggedInEmail != null) {
         // Cari dokumen pengguna berdasarkan email
@@ -43,9 +53,11 @@ class _EditProfileState extends State<EditProfilePage> {
               userDoc.data() as Map<String, dynamic>;
 
           // Update UI dengan data pengguna
-          _nameController.text = userData['name'] ?? 'User';
-          _aboutController.text = userData['about'] ?? 'Available';
-          userId = userDoc.id; // Set userId
+          setState(() {
+            _nameController.text = userData['name'] ?? 'User';
+            _aboutController.text = userData['about'] ?? 'Available';
+            userId = userDoc.id; // Set userId
+          });
         } else {
           // Dokumen tidak ditemukan, buat dokumen baru
           DocumentReference newUserRef =
@@ -54,11 +66,14 @@ class _EditProfileState extends State<EditProfilePage> {
             'about': 'available',
             'email': loggedInEmail,
           });
-          userId = newUserRef.id; // Set userId ke dokumen baru
-          _nameController.text = 'User';
+
+          setState(() {
+            userId = newUserRef.id; // Set userId ke dokumen baru
+            _nameController.text = 'User';
+          });
         }
       } else {
-        debugPrint("Logged in email not found in SharedPreferences.");
+        debugPrint("Failed to get email of logged-in user.");
       }
     } catch (e) {
       debugPrint("Error loading user data: $e");
