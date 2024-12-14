@@ -81,16 +81,15 @@ class _EditProfileState extends State<EditProfilePage> {
   }
 
   Future<void> _saveUserData() async {
-    if (userId.isEmpty) {
-      debugPrint("Error: userId is empty. Cannot save user data.");
+    if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Failed to save profile. User ID is missing.')),
+        const SnackBar(content: Text('Name cannot be empty!')),
       );
-      return; // Hentikan proses jika userId kosong
+      return;
     }
 
     try {
+      // Simpan data pengguna ke Firestore
       await _firestore.collection('users').doc(userId).set({
         'name': _nameController.text,
         'about': _aboutController.text, // Misalnya Anda menambahkan field ini
@@ -99,6 +98,9 @@ class _EditProfileState extends State<EditProfilePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile Updated Successfully!')),
       );
+
+      // Setelah berhasil menyimpan, navigasi ke halaman Home
+      Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       debugPrint("Error saving user data: $e");
       ScaffoldMessenger.of(context).showSnackBar(

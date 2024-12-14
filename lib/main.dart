@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:realmchat/screen/forgotpassword.dart';
 import 'package:realmchat/screen/home.dart';
 import 'package:realmchat/screen/login.dart';
+import 'package:realmchat/screen/profile.dart';
 import 'package:realmchat/screen/register.dart';
 import 'package:realmchat/screen/splash_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -55,6 +56,7 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const Register(),
         '/login': (context) => const LoginScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/edit-profile': (context) => const EditProfilePage(),
       },
       onUnknownRoute: (settings) {
         return MaterialPageRoute(

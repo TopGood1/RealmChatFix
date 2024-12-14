@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:realmchat/main.dart';
@@ -54,22 +55,47 @@ class _LoginScreenState extends State<LoginScreen> {
 
   try {
     // Login menggunakan FirebaseAuth
-    await _auth.signInWithEmailAndPassword(
+    final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
     );
 
-    // Simpan status "Remember Me"
-    await _handleRememberMe();
+    final User? user = userCredential.user;
 
-    // Navigasi ke halaman Home jika login berhasil
-    Navigator.pushReplacementNamed(context, '/home');
+    if (user != null) {
+      // Simpan status "Remember Me"
+      await _handleRememberMe();
+
+      // Cek apakah pengguna memiliki nama yang diatur di Firestore
+      final DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        final userName = data['name'] ?? '';
+
+        if (userName.isEmpty || userName == 'User') {
+          // Nama belum diatur, arahkan ke halaman Edit Profile
+          Navigator.pushReplacementNamed(context, '/edit-profile');
+        } else {
+          // Nama sudah diatur, arahkan ke halaman Home
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      } else {
+        // Jika dokumen tidak ditemukan, buat dokumen baru
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'name': '',
+          'about': '',
+          'email': user.email,
+        });
+
+        // Arahkan ke halaman Edit Profile
+        Navigator.pushReplacementNamed(context, '/edit-profile');
+      }
+    }
   } catch (e) {
-    // Reset remember me jika login gagal
-    setState(() {
-      _rememberMe = false;
-    });
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Error: ${e.toString()}')),
     );

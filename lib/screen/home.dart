@@ -225,6 +225,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     .contains(widget.searchQuery.toLowerCase());
               }).toList();
 
+              if (filteredChats.isEmpty && widget.searchQuery.isNotEmpty) {
+                return const Center(
+                  child: Text(
+                    "User Not Found",
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                );
+              }
+
               return ListView.builder(
                 itemCount: filteredChats.length,
                 itemBuilder: (context, index) {
