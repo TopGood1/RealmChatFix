@@ -48,30 +48,37 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    // Login menggunakan FirebaseAuth
+    await _auth.signInWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
+
+    // Simpan status "Remember Me"
+    await _handleRememberMe();
+
+    // Navigasi ke halaman Home jika login berhasil
+    Navigator.pushReplacementNamed(context, '/home');
+  } catch (e) {
+    // Reset remember me jika login gagal
     setState(() {
-      _isLoading = true;
+      _rememberMe = false;
     });
 
-    try {
-      await _auth.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-
-      await _handleRememberMe();
-
-      // Navigasi ke Home jika login berhasil
-      Navigator.pushReplacementNamed(context, '/home');
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: ${e.toString()}')),
+    );
+  } finally {
+    setState(() {
+      _isLoading = false;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {

@@ -27,20 +27,17 @@ MaterialColor customSwatch = MaterialColor(0xFF41B3A2, color);
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _initializeFirebase();
-  runApp(const MyApp());
+
+  final prefs = await SharedPreferences.getInstance();
+  final rememberMe = prefs.getBool('remember_me') ?? false;
+  final initialRoute = rememberMe ? '/home' : '/login';
+
+  runApp(MyApp(initialRoute: initialRoute));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  Future<String> _getInitialRoute() async {
-    final prefs = await SharedPreferences.getInstance();
-    final rememberMe = prefs.getBool('remember_me') ?? false;
-    if (rememberMe) {
-      return '/home';
-    }
-    return '/login';
-  }
+  final String initialRoute;
+  const MyApp({super.key, required this.initialRoute});
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +48,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: customSwatch,
         textTheme: GoogleFonts.notoSansTextTheme(),
       ),
-      initialRoute: '/loading',
+      initialRoute: initialRoute,
       routes: {
         '/loading': (context) => const SplashScreen(),
         '/home': (context) => const MainScreen(),
