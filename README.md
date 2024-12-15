@@ -53,8 +53,8 @@ RealmChat is a secure and easy-to-use real-time messaging app designed to help y
 10. Contact Us
     If you have any questions or concerns about this Privacy Policy, please contact us at:
 
-    Email : bagustriyudanto8@gmail.com
-    LinkedIN: https://www.linkedin.com/in/bagus-triyudanto-83a92b2a6
+### Email : bagustriyudanto8@gmail.com
+### LinkedIN: https://www.linkedin.com/in/bagus-triyudanto-83a92b2a6
 
 ## Key Features :
 
